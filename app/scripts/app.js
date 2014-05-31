@@ -1,7 +1,7 @@
 'use strict';
 
 angular
-  .module('ngAuthDemoApp', [
+  .module('ngAuthDemo', [
     'ngCookies',
     'ngRoute'
   ])
@@ -15,6 +15,6 @@ angular
         redirectTo: '/'
       });
   })
-  .run(function(authApi) {
-    authApi.init();
+  .run(function(mvdApi) {
+    mvdApi.init();
   });

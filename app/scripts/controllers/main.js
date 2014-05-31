@@ -1,5 +1,5 @@
 'use strict';
 
-angular.module('ngAuthDemoApp')
+angular.module('ngAuthDemo')
   .controller('MainCtrl', function ($scope) {
   });
