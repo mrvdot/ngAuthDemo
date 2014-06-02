@@ -11,6 +11,14 @@ angular
         templateUrl: 'views/main.html',
         controller: 'MainCtrl'
       })
+      .when('/login', {
+        templateUrl : 'views/login.html',
+        controller: 'LoginCtrl'
+      })
+      .when('/app', {
+        templateUrl : 'views/app.html',
+        controller: 'AppCtrl'
+      })
       .otherwise({
         redirectTo: '/'
       });
