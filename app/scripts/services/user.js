@@ -1,7 +1,7 @@
 'use strict';
 
 angular
-  .module('ngAuthDemo')
+  .module('ngAuthDemoUser', [])
   .config(function ($httpProvider) {
     $httpProvider.interceptors.push('userAuthInterceptor');
   })
@@ -15,24 +15,31 @@ angular
     });
     return {
       request : function (config) {
-        // Check to see if we're explicitly bypassing auth for this
-        // and that the call is going to the api we want to authenticate for
-        if (!config.bypassAuth && config.url.indexOf(userApiUrl) === 0) {
+        // Confirm that this call is going to the api we want to authenticate for
+        if (config.url.indexOf(userApiUrl) === 0) {
           // Pass along cookies with our ajax request
           config.withCredentials = true;
         }
+        // If not authorized yet, defer any request that's not explicitly
+        // bypassed or whitelisted
+        if (!userAuth.isAuthorized()) {
+          if (!config.bypassAuth && !userAuth.whitelisted(_currentPath)) {
+            return userAuth.deferUntilAuthorized(config);
+          };
+        };
         return config;
       }
     }
   })
-  .provider('userAuth', function userAuthProvider () {
+  .provider('userAuth', function () {
     var _whiteList = []
-      , provider = this;
+      , _isAuthorized = false;
 
     // Whitelist a route, either exact string or RegExp
-    provider.whitelistRoute = function (route) {
+    this.whitelistRoute = function (route) {
       if (angular.isString(route)) {
-        route = new RegExp(route);
+        // Only match string exactly
+        route = new RegExp('^' + route + '$');
       } else if (!angular.isObject(route) || !angular.isFunction(route.test)) {
         console.warn('Invalid route type passed to whitelistRoute, must be string or RegExp', route);
         return false;
@@ -40,8 +47,8 @@ angular
       _whiteList.push(route);
     }
 
-    provider.$get = function () {
-      return {
+    this.$get = ['$q', '$rootScope', function ($q, $rootScope) {
+      var methods = {
         // given a string as route, check if it's whitelisted
         // if any in whitelist return true, pass. Else reject
         whitelisted : function (route) {
@@ -53,14 +60,41 @@ angular
             };
           }
           return pass;
+        },
+        isAuthorized: function () {
+          return _isAuthorized;
+        },
+        authorize : function (val) {
+          _isAuthorized = val;
+          if (val) {
+            $rootScope.$broadcast('userAuthorized');
+          };
+        },
+        checkAuth: function (defer, config) {
+          return config
+        },
+        deferUntilAuthorized: function (value) {
+          var defer = $q.defer();
+          if (methods.isAuthorized()) {
+            defer.resolve(value);
+          } else {
+            var off = $rootScope.$on('userAuthorized', function () {
+              off();
+              defer.resolve(value);
+            });
+          }
+          return defer.promise;
         }
       }
-    }
+      return methods;
+    }];
   })
   .factory('userApi', function ($http, userApiUrl) {
     return {
       load : function () {
-        return $http.get(userApiUrl + '/load')
+        return $http.get(userApiUrl + '/load', {
+          bypassAuth: true
+        })
       },
       register : function (username, password) {
         return $http.post(
@@ -72,13 +106,14 @@ angular
       }
     }
   })
-  .factory('user', function ($timeout, $cookies, userApi) {
+  .factory('user', function ($timeout, $cookies, userApi, userAuth) {
     var user = {}
       , loadUser = function (cb) {
           // check if user obj is fully loaded
-          if (!user.id) {
+          if (!user.username) {
             userApi.load()
               .success(function (response) {
+                userAuth.authorize(true);
                 angular.extend(user, response.result);
                 cb && cb(user);
               })
@@ -96,6 +131,7 @@ angular
       , registerUser = function (username, password, cb) {
           userApi.register(username, password)
             .success(function (response) {
+              userAuth.authorize(true);
               angular.extend(user, response.result);
               cb && cb(user);
             })

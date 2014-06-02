@@ -3,9 +3,13 @@
 angular
   .module('ngAuthDemo', [
     'ngCookies',
-    'ngRoute'
+    'ngRoute',
+    'ngAuthDemoUser'
   ])
-  .config(function ($routeProvider) {
+  .config(function ($routeProvider, userAuthProvider) {
+    userAuthProvider.whitelistRoute('/');
+    userAuthProvider.whitelistRoute('/login');
+    
     $routeProvider
       .when('/', {
         templateUrl: 'views/main.html',
@@ -22,7 +26,10 @@ angular
       .otherwise({
         redirectTo: '/'
       });
+
   })
-  .run(function(mvdApi) {
-    mvdApi.init();
+  .run(function(mvdApi, user) {
+    mvdApi.init(function () {
+      user.get();
+    });
   });

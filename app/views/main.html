@@ -1,1 +1,7 @@
 <h1>Welcome to ngAuth</h1>
+<p ng-if="user.username">
+  <a href="#/app">Go to app</a>
+</p>
+<p ng-if="!user.username">
+  <a href="#/login">Login</a>
+</p>
